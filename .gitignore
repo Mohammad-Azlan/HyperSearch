@@ -1,0 +1,12 @@
+build/
+build-release/
+data/
+__pycache__/
+*.pyc
+
+.vscode/
+*.exe
+*.obj
+*.o
+*.dll
+*.pdb
