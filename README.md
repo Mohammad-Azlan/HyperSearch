@@ -1,4 +1,4 @@
-# ANN Project
+# HyperSearch
 
 A high-performance approximate nearest neighbor (ANN) vector search engine written from scratch in modern C++.
 
