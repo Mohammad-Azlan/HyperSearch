@@ -94,7 +94,7 @@ std::vector<SearchResult> IVFSQIndex::search(
     for (std::size_t c = 0; c < nlist_; ++c) {
         const float* centroid = centroids_.data() + c * dim_;
 
-        float distance = l2_distance_squared(query, centroid, dim_);
+        float distance = l2_distance_squared_avx2(query, centroid, dim_);
 
         centroid_distances.push_back({c, distance});
     }
@@ -118,7 +118,7 @@ std::vector<SearchResult> IVFSQIndex::search(
 
             quantizer_.decode_vector(code, decoded.data());
 
-            float distance = l2_distance_squared(query, decoded.data(), dim_);
+            float distance = l2_distance_squared_avx2(query, decoded.data(), dim_);
 
             topk.push(vector_idx, distance);
         }
