@@ -43,7 +43,7 @@ std::vector<SearchResult> BruteForceIndex::search(
     for (std::size_t i = 0; i < num_vectors_; ++i) {
         const float* vector_i = data_.data() + i * dim_;
 
-        float distance = l2_distance_squared(query, vector_i, dim_);
+        float distance = l2_distance_squared_avx2(query, vector_i, dim_);
 
         topk.push(i, distance);
     }
