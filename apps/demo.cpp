@@ -1,4 +1,7 @@
 #include "ann/brute_force_index.hpp"
+#include "ann/distance.hpp"
+#include "ann/timer.hpp"
+
 #include <iostream>
 #include <vector>
 
@@ -19,7 +22,6 @@ int main() {
     };
 
     ann::BruteForceIndex index;
-
     index.build(data.data(), num_vectors, dim);
 
     auto results = index.search(query.data(), k);
@@ -29,9 +31,26 @@ int main() {
 
     for (const auto& result : results) {
         std::cout << "vector index = " << result.index
-                  << ", approximate distance = " << result.distance
+                  << ", distance = " << result.distance
                   << "\n";
     }
+
+    // Correctness check on the small 4D demo vector.
+    float scalar_distance = ann::l2_distance_squared(
+        data.data(),
+        query.data(),
+        dim
+    );
+
+    float avx2_distance = ann::l2_distance_squared_avx2(
+        data.data(),
+        query.data(),
+        dim
+    );
+
+    std::cout << "\nDistance check on 4D vector:\n";
+    std::cout << "Scalar L2: " << scalar_distance << "\n";
+    std::cout << "AVX2 L2: " << avx2_distance << "\n";
 
     return 0;
 }

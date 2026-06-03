@@ -24,6 +24,10 @@ add_library(ann_core
     src/dataset.cpp
 )
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(ann_core PRIVATE -mavx2)
+endif()
+
 target_include_directories(ann_core
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -42,6 +46,15 @@ add_executable(ann_benchmark
 )
 
 target_link_libraries(ann_benchmark
+    PRIVATE
+        ann_core
+)
+
+add_executable(ann_distance_benchmark
+    apps/benchmark_distance.cpp
+)
+
+target_link_libraries(ann_distance_benchmark
     PRIVATE
         ann_core
 )
