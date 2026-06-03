@@ -93,7 +93,7 @@ std::vector<SearchResult> IVFIndex::search(
     for (std::size_t c = 0; c < nlist_; ++c) {
         const float* centroid = centroids_.data() + c * dim_;
 
-        float distance = l2_distance_squared(query, centroid, dim_);
+        float distance = l2_distance_squared_avx2(query, centroid, dim_);
 
         centroid_distances.push_back({c, distance});
     }
@@ -114,7 +114,7 @@ std::vector<SearchResult> IVFIndex::search(
         for (std::size_t vector_idx : inverted_lists_[cluster]) {
             const float* vector_ptr = data_.data() + vector_idx * dim_;
 
-            float distance = l2_distance_squared(query, vector_ptr, dim_);
+            float distance = l2_distance_squared_avx2(query, vector_ptr, dim_);
 
             topk.push(vector_idx, distance);
         }
