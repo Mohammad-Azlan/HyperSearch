@@ -29,6 +29,9 @@ public:
         return "IVF-Flat";
     }
 
+    void save(const std::string& path) const;
+    void load(const std::string& path);
+
 private:
     std::size_t nlist_;
     std::size_t nprobe_;

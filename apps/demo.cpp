@@ -1,6 +1,7 @@
 #include "ann/brute_force_index.hpp"
 #include "ann/distance.hpp"
 #include "ann/timer.hpp"
+#include "ann/ivf_index.hpp"
 
 #include <iostream>
 #include <vector>
@@ -56,6 +57,26 @@ int main() {
     std::cout << "\nDistance check on 4D vector:\n";
     std::cout << "Scalar L2: " << scalar_distance << "\n";
     std::cout << "AVX2 L2: " << avx2_distance << "\n";
+
+    std::cout << "\nIVF serialization test:\n";
+
+    ann::IVFIndex ivf(2, 1, 3);
+    ivf.build(data.data(), num_vectors, dim);
+    ivf.save("ivf_demo.index");
+
+    ann::IVFIndex loaded_ivf(1, 1, 1);
+    loaded_ivf.load("ivf_demo.index");
+
+    auto ivf_results = loaded_ivf.search(query.data(), k);
+
+    std::cout << "Index: " << loaded_ivf.name()
+            << " loaded from disk\n";
+
+    for (const auto& result : ivf_results) {
+        std::cout << "vector index = " << result.index
+                << ", distance = " << result.distance
+                << "\n";
+    }
 
     return 0;
 }

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <vector>
+#include <fstream>
 
 namespace ann {
 
@@ -121,6 +122,73 @@ std::vector<SearchResult> IVFIndex::search(
     }
 
     return topk.results();
+}
+
+void IVFIndex::save(const std::string& path) const {
+    std::ofstream out(path, std::ios::binary);
+
+    if (!out) {
+        throw std::runtime_error("Failed to open IVF index file for writing");
+    }
+
+    out.write(reinterpret_cast<const char*>(&nlist_), sizeof(nlist_));
+    out.write(reinterpret_cast<const char*>(&nprobe_), sizeof(nprobe_));
+    out.write(reinterpret_cast<const char*>(&kmeans_iterations_), sizeof(kmeans_iterations_));
+    out.write(reinterpret_cast<const char*>(&num_vectors_), sizeof(num_vectors_));
+    out.write(reinterpret_cast<const char*>(&dim_), sizeof(dim_));
+
+    std::size_t data_size = data_.size();
+    out.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
+    out.write(reinterpret_cast<const char*>(data_.data()), data_size * sizeof(float));
+
+    std::size_t centroids_size = centroids_.size();
+    out.write(reinterpret_cast<const char*>(&centroids_size), sizeof(centroids_size));
+    out.write(reinterpret_cast<const char*>(centroids_.data()), centroids_size * sizeof(float));
+
+    std::size_t num_lists = inverted_lists_.size();
+    out.write(reinterpret_cast<const char*>(&num_lists), sizeof(num_lists));
+
+    for (const auto& list : inverted_lists_) {
+        std::size_t list_size = list.size();
+        out.write(reinterpret_cast<const char*>(&list_size), sizeof(list_size));
+        out.write(reinterpret_cast<const char*>(list.data()), list_size * sizeof(std::size_t));
+    }
+}
+
+void IVFIndex::load(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+
+    if (!in) {
+        throw std::runtime_error("Failed to open IVF index file for reading");
+    }
+
+    in.read(reinterpret_cast<char*>(&nlist_), sizeof(nlist_));
+    in.read(reinterpret_cast<char*>(&nprobe_), sizeof(nprobe_));
+    in.read(reinterpret_cast<char*>(&kmeans_iterations_), sizeof(kmeans_iterations_));
+    in.read(reinterpret_cast<char*>(&num_vectors_), sizeof(num_vectors_));
+    in.read(reinterpret_cast<char*>(&dim_), sizeof(dim_));
+
+    std::size_t data_size = 0;
+    in.read(reinterpret_cast<char*>(&data_size), sizeof(data_size));
+    data_.resize(data_size);
+    in.read(reinterpret_cast<char*>(data_.data()), data_size * sizeof(float));
+
+    std::size_t centroids_size = 0;
+    in.read(reinterpret_cast<char*>(&centroids_size), sizeof(centroids_size));
+    centroids_.resize(centroids_size);
+    in.read(reinterpret_cast<char*>(centroids_.data()), centroids_size * sizeof(float));
+
+    std::size_t num_lists = 0;
+    in.read(reinterpret_cast<char*>(&num_lists), sizeof(num_lists));
+    inverted_lists_.resize(num_lists);
+
+    for (auto& list : inverted_lists_) {
+        std::size_t list_size = 0;
+        in.read(reinterpret_cast<char*>(&list_size), sizeof(list_size));
+
+        list.resize(list_size);
+        in.read(reinterpret_cast<char*>(list.data()), list_size * sizeof(std::size_t));
+    }
 }
 
 }
