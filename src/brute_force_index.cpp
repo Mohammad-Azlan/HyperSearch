@@ -4,6 +4,7 @@
 #include "ann/topk.hpp"
 
 #include <stdexcept>
+#include <fstream>
 
 namespace ann {
 
@@ -49,6 +50,54 @@ std::vector<SearchResult> BruteForceIndex::search(
     }
 
     return topk.results();
+}
+
+void BruteForceIndex::save(const std::string& path) const {
+    std::ofstream out(path, std::ios::binary);
+
+    if (!out) {
+        throw std::runtime_error("Failed to open file for writing");
+    }
+
+    out.write(
+        reinterpret_cast<const char*>(&num_vectors_),
+        sizeof(num_vectors_)
+    );
+
+    out.write(
+        reinterpret_cast<const char*>(&dim_),
+        sizeof(dim_)
+    );
+
+    out.write(
+        reinterpret_cast<const char*>(data_.data()),
+        data_.size() * sizeof(float)
+    );
+}
+
+void BruteForceIndex::load(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+
+    if (!in) {
+        throw std::runtime_error("Failed to open file for reading");
+    }
+
+    in.read(
+        reinterpret_cast<char*>(&num_vectors_),
+        sizeof(num_vectors_)
+    );
+
+    in.read(
+        reinterpret_cast<char*>(&dim_),
+        sizeof(dim_)
+    );
+
+    data_.resize(num_vectors_ * dim_);
+
+    in.read(
+        reinterpret_cast<char*>(data_.data()),
+        data_.size() * sizeof(float)
+    );
 }
 
 }

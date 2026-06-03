@@ -24,9 +24,14 @@ int main() {
     ann::BruteForceIndex index;
     index.build(data.data(), num_vectors, dim);
 
-    auto results = index.search(query.data(), k);
+    index.save("brute_demo.index");
 
-    std::cout << "Index: " << index.name() << "\n";
+    ann::BruteForceIndex loaded_index;
+    loaded_index.load("brute_demo.index");
+
+    auto results = loaded_index.search(query.data(), k);
+
+    std::cout << "Index: " << loaded_index.name() << " loaded from disk\n";
     std::cout << "Top " << k << " results:\n";
 
     for (const auto& result : results) {

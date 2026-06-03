@@ -3,6 +3,7 @@
 #include "ann/index.hpp"
 
 #include <vector>
+#include <string>
 
 namespace ann {
 
@@ -22,6 +23,9 @@ public:
     std::string name() const override {
         return "BruteForce";
     }
+
+    void save(const std::string& path) const;
+    void load(const std::string& path);
 
 private:
     std::vector<float> data_;
