@@ -100,7 +100,7 @@ std::vector<SearchResult> IVFPQIndex::search(
     for (std::size_t c = 0; c < nlist_; ++c) {
         const float* centroid = centroids_.data() + c * dim_;
 
-        float distance = l2_distance_squared(query, centroid, dim_);
+        float distance = l2_distance_squared_avx2(query, centroid, dim_);
 
         centroid_distances.push_back({c, distance});
     }

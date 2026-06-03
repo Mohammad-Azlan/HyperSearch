@@ -8,11 +8,12 @@ This project implements exact and approximate vector search methods used in retr
 
 - Built a vector search engine from scratch in modern C++
 - Implemented IVF, SQ8, PQ, IVF-SQ, and IVF-PQ
+- Added AVX2 SIMD-optimized L2 distance kernels
 - Benchmarked on the full **SIFT1M** dataset (1 million vectors)
-- Achieved **63x latency speedup** at low-recall IVF settings
-- Achieved **0.989 Recall@10 at 4.4x speedup**
-- Achieved **12.7x memory reduction** with IVF-PQ
-- Reached **1081 queries/sec** with multithreaded IVF-PQ
+- Achieved **73x latency speedup** at low-recall IVF settings
+- Achieved **0.989 Recall@10 at 5.6x speedup**
+- Achieved **12.7x memory reduction** with IVF-PQ while maintaining sub-2 ms query latency
+- Reached **2064 queries/sec** with multithreaded IVF-PQ
 
 ## Current Features
 
@@ -20,6 +21,7 @@ This project implements exact and approximate vector search methods used in retr
 - Squared L2 distance kernel
 - Heap-based top-k selection
 - Abstract `Index` interface
+- AVX2 SIMD-optimized distance kernels
 - IVF-Flat index with k-means clustering
 - Scalar Quantization (SQ8)
 - IVF-SQ8 index
@@ -41,6 +43,7 @@ Final benchmark configuration:
 - Query vectors: 100
 - Dimension: 128
 - Metric: Squared L2 distance
+- SIMD Acceleration: AVX2
 - k: 10
 - Build type: Release
 - Compiler: GCC 14.2.0 (MSYS2 UCRT64)
@@ -53,39 +56,39 @@ Final benchmark configuration:
 
 | Index | Recall@10 | Avg Latency | P50 | P95 | Memory |
 |---|---:|---:|---:|---:|---:|
-| BruteForce | 1.000 | 50.73 ms | 49.93 ms | 58.51 ms | 512 MB |
+| BruteForce | 1.000 | 29.16 ms | 28.30 ms | 33.06 ms | 512 MB |
 
 ### Quantized Indexes
 
 | Index | Recall@10 | Avg Latency | P50 | P95 | Memory | Memory Reduction |
 |---|---:|---:|---:|---:|---:|---:|
-| SQ-BruteForce | 0.990 | 58.76 ms | 58.22 ms | 60.91 ms | 128 MB | 4.0x |
-| PQ-BruteForce | 0.700 | 10.83 ms | 10.72 ms | 11.62 ms | 32.1 MB | 15.9x |
-| IVF-SQ8 | 0.990 | 32.16 ms | 32.28 ms | 36.82 ms | 136.1 MB | 3.76x |
-| IVF-PQ (nprobe=8) | 0.693 | 3.62 ms | 3.39 ms | 6.41 ms | 40.3 MB | 12.7x |
+| SQ-BruteForce | 0.990 | 19.99 ms | 19.30 ms | 21.84 ms | 128 MB | 4.0x |
+| PQ-BruteForce | 0.700 | 13.06 ms | 13.02 ms | 13.64 ms | 32.1 MB | 15.9x |
+| IVF-SQ8 | 0.990 | 22.97 ms | 23.05 ms | 25.94 ms | 136.1 MB | 3.76x |
+| IVF-PQ (nprobe=8) | 0.693 | 1.70 ms | 1.65 ms | 2.46 ms | 40.3 MB | 12.7x |
 
 ### IVF-Flat Sweep
 
 | nlist | nprobe | Recall@10 | Avg Latency | Speedup vs Brute |
 |---:|---:|---:|---:|---:|
-| 256 | 1 | 0.535 | 0.80 ms | 63.0x |
-| 256 | 2 | 0.708 | 1.50 ms | 33.9x |
-| 256 | 4 | 0.871 | 3.06 ms | 16.6x |
-| 256 | 8 | 0.965 | 6.16 ms | 8.24x |
-| 256 | 16 | 0.989 | 11.51 ms | 4.41x |
-| 256 | 32 | 0.998 | 22.12 ms | 2.29x |
-| 256 | 64 | 0.999 | 45.43 ms | 1.12x |
-| 256 | 128 | 0.999 | 85.22 ms | 0.60x |
+| 256 | 1 | 0.535 | 0.40 ms | 73.10x |
+| 256 | 2 | 0.708 | 0.72 ms | 40.29x |
+| 256 | 4 | 0.871 | 1.40 ms | 20.81x |
+| 256 | 8 | 0.965 | 2.69 ms | 10.84x |
+| 256 | 16 | 0.989 | 5.23 ms | 5.58x |
+| 256 | 32 | 0.998 | 10.14 ms | 2.88x |
+| 256 | 64 | 0.999 | 19.88 ms | 1.47x |
+| 256 | 128 | 0.999 | 39.35 ms | 0.74x |
 
 ### Multithreaded IVF-PQ Throughput (nprobe=8)
 
 | Threads | QPS |
 |---:|---:|
-| 1 | 314.58 |
-| 2 | 606.83 |
-| 4 | 988.75 |
-| 8 | 948.70 |
-| 10 | 1081.69 |
+| 1 | 577.94 |
+| 2 | 1010.69 |
+| 4 | 1225.35 |
+| 8 | 2028.95 |
+| 10 | 2064.32 |
 
 
 ## Benchmark Plots
@@ -118,10 +121,34 @@ IVF-PQ parallel batch search scales with thread count on the full SIFT1M benchma
 
 On the full SIFT1M benchmark:
 
-- IVF-Flat demonstrated the classic ANN recall-latency tradeoff, reaching **0.965 Recall@10 at 6.16 ms/query (8.2x speedup over brute-force)** and **0.989 Recall@10 at 11.5 ms/query (4.4x speedup over brute-force)**.
-- IVF-PQ achieved **12.7x memory reduction** with **3.62 ms average latency** and **0.693 Recall@10** , providing a strong memory-latency tradeoff for compressed ANN search.
-- PQ-BruteForce achieved **15.9x memory reduction** while remaining **4.7x faster than brute force**.
-- IVF-PQ multithreaded batch search reached **1081 QPS** on 10 CPU cores.
+- IVF-Flat demonstrated the classic ANN recall-latency tradeoff, reaching **0.965 Recall@10 at 2.69 ms/query (10.84x speedup over brute-force)** and **0.989 Recall@10 at 5.23 ms/query (5.58x speedup over brute-force)**.
+- IVF-PQ achieved **12.7x memory reduction** with **1.70 ms average latency** and **0.693 Recall@10** , providing a strong memory-latency tradeoff for compressed ANN search.
+- PQ-BruteForce achieved **15.9x memory reduction** while remaining **2.23x faster than brute force**.
+- IVF-PQ multithreaded batch search reached **2064 QPS** on 10 CPU cores.
+
+## SIMD Optimizations
+
+HyperSearch includes AVX2 vectorized L2 distance kernels for float-vector search.
+
+Compared to the original scalar implementation on SIFT1M:
+
+| Index | Scalar | AVX2 | Speedup |
+|---|---:|---:|---:|
+| BruteForce | 50.73 ms | 29.16 ms | 1.74x |
+| SQ-BruteForce | 58.76 ms | 19.99 ms | 2.94x |
+| IVF-Flat (nprobe=16) | 11.51 ms | 5.23 ms | 2.20x |
+
+The SIMD implementation uses AVX2 256-bit vector instructions to accelerate squared L2 distance computation across 128-dimensional vectors.
+
+### Current Version
+
+HyperSearch v2.0
+
+Major additions:
+- IVF-PQ compressed ANN search
+- Multithreaded throughput benchmarking
+- AVX2 SIMD-accelerated distance kernels
+- Full SIFT1M evaluation pipeline
 
 ## Architecture
 
@@ -180,7 +207,6 @@ data/sift1m/sift_learn.fvecs
 
 - Ground truth is computed using brute-force search during evaluation
 - IVF/PQ training is single-threaded
-- No SIMD-optimized distance kernels yet
 - No persistence / index serialization
 - No Python bindings
 - No graph-based ANN index (e.g. HNSW)
@@ -189,7 +215,6 @@ data/sift1m/sift_learn.fvecs
 
 Planned next steps:
 
-- SIMD-optimized distance kernels (AVX2/AVX-512)
 - Index serialization / persistence
 - Python bindings via pybind11
 - HNSW graph-based ANN index

@@ -48,7 +48,7 @@ std::vector<SearchResult> SQBruteForceIndex::search(
 
         quantizer_.decode_vector(code, decoded.data());
 
-        float distance = l2_distance_squared(query, decoded.data(), dim_);
+        float distance = l2_distance_squared_avx2(query, decoded.data(), dim_);
 
         topk.push(i, distance);
     }
