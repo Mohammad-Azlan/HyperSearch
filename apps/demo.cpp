@@ -2,6 +2,7 @@
 #include "ann/distance.hpp"
 #include "ann/timer.hpp"
 #include "ann/ivf_index.hpp"
+#include "ann/ivf_sq_index.hpp"
 
 #include <iostream>
 #include <vector>
@@ -73,6 +74,26 @@ int main() {
             << " loaded from disk\n";
 
     for (const auto& result : ivf_results) {
+        std::cout << "vector index = " << result.index
+                << ", distance = " << result.distance
+                << "\n";
+    }
+
+    std::cout << "\nIVF-SQ serialization test:\n";
+
+    ann::IVFSQIndex ivf_sq(2, 1, 3);
+    ivf_sq.build(data.data(), num_vectors, dim);
+    ivf_sq.save("ivf_sq_demo.index");
+
+    ann::IVFSQIndex loaded_ivf_sq(1, 1, 1);
+    loaded_ivf_sq.load("ivf_sq_demo.index");
+
+    auto ivf_sq_results = loaded_ivf_sq.search(query.data(), k);
+
+    std::cout << "Index: " << loaded_ivf_sq.name()
+            << " loaded from disk\n";
+
+    for (const auto& result : ivf_sq_results) {
         std::cout << "vector index = " << result.index
                 << ", distance = " << result.distance
                 << "\n";

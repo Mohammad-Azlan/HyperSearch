@@ -4,6 +4,8 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <istream>
+#include <ostream>
 
 namespace ann {
 
@@ -99,6 +101,32 @@ void ScalarQuantizer::decode_vector(
 std::size_t ScalarQuantizer::memory_usage_bytes() const {
     return min_.size() * sizeof(float)
          + scale_.size() * sizeof(float);
+}
+
+void ScalarQuantizer::save_state(std::ostream& out) const {
+    out.write(reinterpret_cast<const char*>(&dim_), sizeof(dim_));
+
+    std::size_t min_size = min_.size();
+    out.write(reinterpret_cast<const char*>(&min_size), sizeof(min_size));
+    out.write(reinterpret_cast<const char*>(min_.data()), min_size * sizeof(float));
+
+    std::size_t scale_size = scale_.size();
+    out.write(reinterpret_cast<const char*>(&scale_size), sizeof(scale_size));
+    out.write(reinterpret_cast<const char*>(scale_.data()), scale_size * sizeof(float));
+}
+
+void ScalarQuantizer::load_state(std::istream& in) {
+    in.read(reinterpret_cast<char*>(&dim_), sizeof(dim_));
+
+    std::size_t min_size = 0;
+    in.read(reinterpret_cast<char*>(&min_size), sizeof(min_size));
+    min_.resize(min_size);
+    in.read(reinterpret_cast<char*>(min_.data()), min_size * sizeof(float));
+
+    std::size_t scale_size = 0;
+    in.read(reinterpret_cast<char*>(&scale_size), sizeof(scale_size));
+    scale_.resize(scale_size);
+    in.read(reinterpret_cast<char*>(scale_.data()), scale_size * sizeof(float));
 }
 
 }
