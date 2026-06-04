@@ -14,6 +14,8 @@ This project implements exact and approximate vector search methods used in retr
 - Achieved **0.989 Recall@10 at 5.6x speedup**
 - Achieved **12.7x memory reduction** with IVF-PQ while maintaining sub-2 ms query latency
 - Reached **2064 queries/sec** with multithreaded IVF-PQ
+- Added binary index serialization and persistence
+- Save trained indexes and reload without retraining
 
 ## Current Features
 
@@ -33,6 +35,25 @@ This project implements exact and approximate vector search methods used in retr
 - Multithreaded batch throughput benchmark
 - CSV benchmark export
 - SIFT1M `.fvecs` / `.ivecs` dataset loader
+### Persistence
+- BruteForce index serialization
+- IVF-Flat index serialization
+- IVF-SQ index serialization
+- IVF-PQ index serialization
+- Binary save/load support for quantizer state and ANN structures
+
+#### Example
+```
+ann::IVFPQIndex index(...);
+
+index.build(data.data(), num_vectors, dim);
+index.save("sift_ivfpq.index");
+
+ann::IVFPQIndex loaded(...);
+loaded.load("sift_ivfpq.index");
+
+auto results = loaded.search(query.data(), 10);
+```
 
 ## Benchmark Setup
 
@@ -142,13 +163,28 @@ The SIMD implementation uses AVX2 256-bit vector instructions to accelerate squa
 
 ### Current Version
 
-HyperSearch v2.0
+HyperSearch v3.0
 
 Major additions:
-- IVF-PQ compressed ANN search
-- Multithreaded throughput benchmarking
-- AVX2 SIMD-accelerated distance kernels
-- Full SIFT1M evaluation pipeline
+- Added index serialization and persistence
+- Added save/load support for IVF, IVF-SQ, and IVF-PQ
+- Validated serialized indexes on SIFT1M
+
+## Version History
+
+### v3.0
+- Added index serialization and persistence
+- Added save/load support for IVF, IVF-SQ, and IVF-PQ
+- Validated serialized indexes on SIFT1M
+
+### v2.0
+- Added AVX2 SIMD acceleration
+- Improved search latency by up to ~3x
+
+### v1.0
+- Initial ANN engine release
+- IVF, SQ, PQ, IVF-SQ, IVF-PQ
+- SIFT1M benchmarking
 
 ## Architecture
 
@@ -207,7 +243,6 @@ data/sift1m/sift_learn.fvecs
 
 - Ground truth is computed using brute-force search during evaluation
 - IVF/PQ training is single-threaded
-- No persistence / index serialization
 - No Python bindings
 - No graph-based ANN index (e.g. HNSW)
 
@@ -215,7 +250,6 @@ data/sift1m/sift_learn.fvecs
 
 Planned next steps:
 
-- Index serialization / persistence
 - Python bindings via pybind11
 - HNSW graph-based ANN index
 - Multi-threaded index training
