@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+#include <iosfwd>
 
 namespace ann {
 
@@ -57,6 +58,9 @@ public:
     }
 
     std::size_t memory_usage_bytes() const;
+
+    void save_state(std::ostream& out) const;
+    void load_state(std::istream& in);
 
 private:
     std::size_t m_;

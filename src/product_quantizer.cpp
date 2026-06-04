@@ -7,6 +7,8 @@
 #include <random>
 #include <stdexcept>
 #include <vector>
+#include <istream>
+#include <ostream>
 
 namespace ann {
 
@@ -258,6 +260,46 @@ float ProductQuantizer::adc_distance(
 
 std::size_t ProductQuantizer::memory_usage_bytes() const {
     return codebooks_.size() * sizeof(float);
+}
+
+void ProductQuantizer::save_state(std::ostream& out) const {
+    out.write(reinterpret_cast<const char*>(&m_), sizeof(m_));
+    out.write(reinterpret_cast<const char*>(&ksub_), sizeof(ksub_));
+    out.write(reinterpret_cast<const char*>(&dim_), sizeof(dim_));
+    out.write(reinterpret_cast<const char*>(&dsub_), sizeof(dsub_));
+
+    std::size_t codebook_size = codebooks_.size();
+
+    out.write(
+        reinterpret_cast<const char*>(&codebook_size),
+        sizeof(codebook_size)
+    );
+
+    out.write(
+        reinterpret_cast<const char*>(codebooks_.data()),
+        codebook_size * sizeof(float)
+    );
+}
+
+void ProductQuantizer::load_state(std::istream& in) {
+    in.read(reinterpret_cast<char*>(&m_), sizeof(m_));
+    in.read(reinterpret_cast<char*>(&ksub_), sizeof(ksub_));
+    in.read(reinterpret_cast<char*>(&dim_), sizeof(dim_));
+    in.read(reinterpret_cast<char*>(&dsub_), sizeof(dsub_));
+
+    std::size_t codebook_size = 0;
+
+    in.read(
+        reinterpret_cast<char*>(&codebook_size),
+        sizeof(codebook_size)
+    );
+
+    codebooks_.resize(codebook_size);
+
+    in.read(
+        reinterpret_cast<char*>(codebooks_.data()),
+        codebook_size * sizeof(float)
+    );
 }
 
 }

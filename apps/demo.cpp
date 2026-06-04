@@ -3,6 +3,7 @@
 #include "ann/timer.hpp"
 #include "ann/ivf_index.hpp"
 #include "ann/ivf_sq_index.hpp"
+#include "ann/ivf_pq_index.hpp"
 
 #include <iostream>
 #include <vector>
@@ -94,6 +95,38 @@ int main() {
             << " loaded from disk\n";
 
     for (const auto& result : ivf_sq_results) {
+        std::cout << "vector index = " << result.index
+                << ", distance = " << result.distance
+                << "\n";
+    }
+
+    std::cout << "\nIVF-PQ serialization test:\n";
+
+    ann::IVFPQIndex ivf_pq(
+        2,  // nlist
+        1,  // nprobe
+        3,  // kmeans iterations
+        2,  // pq_m
+        2,  // pq_ksub
+        3   // pq_iterations
+    );
+
+    ivf_pq.build(data.data(), num_vectors, dim);
+    ivf_pq.save("ivf_pq_demo.index");
+
+    ann::IVFPQIndex loaded_ivf_pq(
+        1, 1, 1,
+        1, 2, 1
+    );
+
+    loaded_ivf_pq.load("ivf_pq_demo.index");
+
+    auto ivf_pq_results = loaded_ivf_pq.search(query.data(), k);
+
+    std::cout << "Index: " << loaded_ivf_pq.name()
+            << " loaded from disk\n";
+
+    for (const auto& result : ivf_pq_results) {
         std::cout << "vector index = " << result.index
                 << ", distance = " << result.distance
                 << "\n";
