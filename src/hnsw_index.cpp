@@ -3,14 +3,17 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <queue>
+#include <unordered_set>
 
 namespace ann {
 
-HNSWIndex::HNSWIndex(std::size_t M)
-    : M_(M) {
+HNSWIndex::HNSWIndex(std::size_t M, std::size_t ef_search)
+    : M_(M),
+      ef_search_(ef_search) {
 
-    if (M_ == 0) {
-        throw std::invalid_argument("M must be > 0");
+    if (M_ == 0 || ef_search_ == 0) {
+        throw std::invalid_argument("M and ef_search must be > 0");
     }
 }
 
@@ -88,61 +91,100 @@ std::vector<SearchResult> HNSWIndex::search(
         return {};
     }
 
+    struct MinCandidate {
+        float distance;
+        std::size_t index;
+
+        bool operator<(const MinCandidate& other) const {
+            return distance > other.distance;
+        }
+    };
+
+    struct MaxResult {
+        float distance;
+        std::size_t index;
+
+        bool operator<(const MaxResult& other) const {
+            return distance < other.distance;
+        }
+    };
+
+    std::priority_queue<MinCandidate> candidates;
+    std::priority_queue<MaxResult> results;
     std::vector<bool> visited(num_vectors_, false);
-    std::vector<SearchResult> candidates;
 
-    std::size_t current = 0;
-    visited[current] = true;
+    std::size_t entry = 0;
 
-    float current_distance = l2_distance_squared_avx2(
+    float entry_distance = l2_distance_squared_avx2(
         query,
-        data_.data() + current * dim_,
+        data_.data() + entry * dim_,
         dim_
     );
 
-    bool improved = true;
+    candidates.push({entry_distance, entry});
+    results.push({entry_distance, entry});
+    visited[entry] = true;
 
-    while (improved) {
-        improved = false;
+    while (!candidates.empty()) {
+        auto current = candidates.top();
+        candidates.pop();
 
-        candidates.push_back({current, current_distance});
+        float worst_result_distance = results.top().distance;
 
-        for (std::size_t neighbor : graph_[current]) {
+        if (current.distance > worst_result_distance &&
+            results.size() >= ef_search_) {
+            break;
+        }
+
+        for (std::size_t neighbor : graph_[current.index]) {
             if (visited[neighbor]) {
                 continue;
             }
 
             visited[neighbor] = true;
 
-            float neighbor_distance = l2_distance_squared_avx2(
+            float distance = l2_distance_squared_avx2(
                 query,
                 data_.data() + neighbor * dim_,
                 dim_
             );
 
-            candidates.push_back({neighbor, neighbor_distance});
+            if (results.size() < ef_search_ ||
+                distance < results.top().distance) {
 
-            if (neighbor_distance < current_distance) {
-                current = neighbor;
-                current_distance = neighbor_distance;
-                improved = true;
+                candidates.push({distance, neighbor});
+                results.push({distance, neighbor});
+
+                if (results.size() > ef_search_) {
+                    results.pop();
+                }
             }
         }
     }
 
+    std::vector<SearchResult> output;
+
+    while (!results.empty()) {
+        output.push_back({
+            results.top().index,
+            results.top().distance
+        });
+        results.pop();
+    }
+
     std::sort(
-        candidates.begin(),
-        candidates.end(),
+        output.begin(),
+        output.end(),
         [](const SearchResult& a, const SearchResult& b) {
             return a.distance < b.distance;
         }
     );
 
-    if (candidates.size() > k) {
-        candidates.resize(k);
+    if (output.size() > k) {
+        output.resize(k);
     }
 
-    return candidates;
+    return output;
 }
 
 }
