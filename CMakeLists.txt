@@ -22,6 +22,7 @@ add_library(ann_core
     src/parallel_benchmark.cpp
     src/benchmark_report.cpp
     src/dataset.cpp
+    src/hnsw_index.cpp
 )
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

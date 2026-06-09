@@ -4,6 +4,7 @@
 #include "ann/ivf_index.hpp"
 #include "ann/ivf_sq_index.hpp"
 #include "ann/ivf_pq_index.hpp"
+#include "ann/hnsw_index.hpp"
 
 #include <iostream>
 #include <vector>
@@ -127,6 +128,21 @@ int main() {
             << " loaded from disk\n";
 
     for (const auto& result : ivf_pq_results) {
+        std::cout << "vector index = " << result.index
+                << ", distance = " << result.distance
+                << "\n";
+    }
+
+    std::cout << "\nHNSW serialization-free search test:\n";
+
+    ann::HNSWIndex hnsw(2);
+    hnsw.build(data.data(), num_vectors, dim);
+
+    auto hnsw_results = hnsw.search(query.data(), k);
+
+    std::cout << "Index: " << hnsw.name() << "\n";
+
+    for (const auto& result : hnsw_results) {
         std::cout << "vector index = " << result.index
                 << ", distance = " << result.distance
                 << "\n";
