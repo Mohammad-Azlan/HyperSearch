@@ -10,7 +10,7 @@ namespace ann {
 
 class HNSWIndex : public Index {
 public:
-    HNSWIndex(std::size_t M, std::size_t ef_search);
+    HNSWIndex(std::size_t M, std::size_t ef_search, std::size_t ef_construction);
 
     void build(
         const float* data,
@@ -37,6 +37,14 @@ private:
 
     std::vector<std::vector<std::size_t>> graph_;
     std::size_t ef_search_;
+    std::size_t ef_construction_;
+    std::vector<SearchResult> search_layer(
+        const float* query,
+        std::size_t entry_point,
+        std::size_t ef
+    ) const;
+
+    void trim_neighbors(std::size_t node);
 };
 
 }

@@ -135,7 +135,7 @@ int main() {
 
     std::cout << "\nHNSW serialization-free search test:\n";
 
-    ann::HNSWIndex hnsw(2,4);
+    ann::HNSWIndex hnsw(2,4, 4);
     hnsw.build(data.data(), num_vectors, dim);
 
     auto hnsw_results = hnsw.search(query.data(), k);
