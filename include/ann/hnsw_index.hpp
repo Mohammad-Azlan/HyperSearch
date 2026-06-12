@@ -35,16 +35,26 @@ private:
 
     std::vector<float> data_;
 
-    std::vector<std::vector<std::size_t>> graph_;
+    // layers_[level][node] stores neighbors of node at that level.
+    std::vector<std::vector<std::vector<std::size_t>>> layers_;
+
     std::size_t ef_search_;
     std::size_t ef_construction_;
+    std::size_t entry_point_ = 0;
+    std::size_t max_level_ = 0;
+
+    std::vector<std::size_t> node_levels_;
+
     std::vector<SearchResult> search_layer(
         const float* query,
         std::size_t entry_point,
-        std::size_t ef
+        std::size_t ef,
+        std::size_t level
     ) const;
 
-    void trim_neighbors(std::size_t node);
+    void trim_neighbors(std::size_t node, std::size_t level);
+
+    std::size_t random_level();
 };
 
 }

@@ -29,7 +29,8 @@ namespace ann {
     std::vector<SearchResult> HNSWIndex::search_layer(
         const float* query,
         std::size_t entry_point,
-        std::size_t ef
+        std::size_t ef,
+        std::size_t level
     ) const {
         struct MinCandidate {
             float distance;
@@ -72,7 +73,7 @@ namespace ann {
                 break;
             }
 
-            for (std::size_t neighbor : graph_[current.index]) {
+            for (std::size_t neighbor : layers_[level][current.index]) {
                 if (visited[neighbor]) {
                     continue;
                 }
@@ -114,8 +115,8 @@ namespace ann {
         return output;
     }
 
-    void HNSWIndex::trim_neighbors(std::size_t node) {
-        auto& neighbors = graph_[node];
+    void HNSWIndex::trim_neighbors(std::size_t node, std::size_t level) {
+        auto& neighbors = layers_[level][node];
 
         if (neighbors.size() <= M_) {
             return;
@@ -173,19 +174,22 @@ namespace ann {
 
         data_.assign(data, data + num_vectors_ * dim_);
 
-        graph_.clear();
-        graph_.resize(num_vectors_);
+        layers_.clear();
+        layers_.resize(1);
+        layers_[0].resize(num_vectors_);
 
-        // First node becomes the entry point.
-        graph_[0] = {};
+        entry_point_ = 0;
+        max_level_ = 0;
+        node_levels_.assign(num_vectors_, 0);
 
         for (std::size_t i = 1; i < num_vectors_; ++i) {
             const float* vector_i = data_.data() + i * dim_;
 
             auto candidates = search_layer(
                 vector_i,
-                0,
-                ef_construction_
+                entry_point_,
+                ef_construction_,
+                0
             );
 
             std::size_t keep = std::min(M_, candidates.size());
@@ -193,17 +197,12 @@ namespace ann {
             for (std::size_t n = 0; n < keep; ++n) {
                 std::size_t neighbor = candidates[n].index;
 
-                // Forward link: i -> neighbor
-                graph_[i].push_back(neighbor);
-
-                // Reverse link: neighbor -> i
-                graph_[neighbor].push_back(i);
-
-                // Keep reverse side bounded by M.
-                trim_neighbors(neighbor);
+                layers_[0][i].push_back(neighbor);
+                layers_[0][neighbor].push_back(i);
+                trim_neighbors(neighbor, 0);
             }
 
-            trim_neighbors(i);
+            trim_neighbors(i, 0);
         }
     }
 
@@ -268,7 +267,7 @@ namespace ann {
                 break;
             }
 
-            for (std::size_t neighbor : graph_[current.index]) {
+            for (std::size_t neighbor : layers_[0][current.index]) {
                 if (visited[neighbor]) {
                     continue;
                 }
