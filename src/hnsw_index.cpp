@@ -245,100 +245,50 @@ namespace ann {
             return {};
         }
 
-        struct MinCandidate {
-            float distance;
-            std::size_t index;
+        std::size_t current = entry_point_;
 
-            bool operator<(const MinCandidate& other) const {
-                return distance > other.distance;
-            }
-        };
+        // Greedy search from upper layers down to layer 1.
+        for (std::size_t level = max_level_; level > 0; --level) {
+            bool improved = true;
 
-        struct MaxResult {
-            float distance;
-            std::size_t index;
+            while (improved) {
+                improved = false;
 
-            bool operator<(const MaxResult& other) const {
-                return distance < other.distance;
-            }
-        };
-
-        std::priority_queue<MinCandidate> candidates;
-        std::priority_queue<MaxResult> results;
-        std::vector<bool> visited(num_vectors_, false);
-
-        std::size_t entry = 0;
-
-        float entry_distance = l2_distance_squared_avx2(
-            query,
-            data_.data() + entry * dim_,
-            dim_
-        );
-
-        candidates.push({entry_distance, entry});
-        results.push({entry_distance, entry});
-        visited[entry] = true;
-
-        while (!candidates.empty()) {
-            auto current = candidates.top();
-            candidates.pop();
-
-            float worst_result_distance = results.top().distance;
-
-            if (current.distance > worst_result_distance &&
-                results.size() >= ef_search_) {
-                break;
-            }
-
-            for (std::size_t neighbor : layers_[0][current.index]) {
-                if (visited[neighbor]) {
-                    continue;
-                }
-
-                visited[neighbor] = true;
-
-                float distance = l2_distance_squared_avx2(
+                float current_distance = l2_distance_squared_avx2(
                     query,
-                    data_.data() + neighbor * dim_,
+                    data_.data() + current * dim_,
                     dim_
                 );
 
-                if (results.size() < ef_search_ ||
-                    distance < results.top().distance) {
+                for (std::size_t neighbor : layers_[level][current]) {
+                    float neighbor_distance = l2_distance_squared_avx2(
+                        query,
+                        data_.data() + neighbor * dim_,
+                        dim_
+                    );
 
-                    candidates.push({distance, neighbor});
-                    results.push({distance, neighbor});
-
-                    if (results.size() > ef_search_) {
-                        results.pop();
+                    if (neighbor_distance < current_distance) {
+                        current = neighbor;
+                        current_distance = neighbor_distance;
+                        improved = true;
                     }
                 }
             }
         }
 
-        std::vector<SearchResult> output;
-
-        while (!results.empty()) {
-            output.push_back({
-                results.top().index,
-                results.top().distance
-            });
-            results.pop();
-        }
-
-        std::sort(
-            output.begin(),
-            output.end(),
-            [](const SearchResult& a, const SearchResult& b) {
-                return a.distance < b.distance;
-            }
+        // Beam search on layer 0.
+        auto results = search_layer(
+            query,
+            current,
+            ef_search_,
+            0
         );
 
-        if (output.size() > k) {
-            output.resize(k);
+        if (results.size() > k) {
+            results.resize(k);
         }
 
-        return output;
+        return results;
     }
 
     std::size_t HNSWIndex::random_level() {
