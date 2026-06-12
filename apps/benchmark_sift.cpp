@@ -12,6 +12,7 @@
 #include "ann/parallel_benchmark.hpp"
 #include "ann/benchmark_report.hpp"
 #include "ann/dataset.hpp"
+#include "ann/hnsw_index.hpp"
 
 #include <iostream>
 #include <random>
@@ -92,6 +93,7 @@ int main() {
     const bool run_ivf_sq = true;
     const bool run_ivf_flat_sweep = true;
     const bool run_parallel_ivf_pq = true;
+    const bool run_hnsw = true;
 
     const std::string base_path = "data/sift1m/sift_base.fvecs";
     const std::string query_path = "data/sift1m/sift_query.fvecs";
@@ -507,6 +509,70 @@ int main() {
                 });
             }
         }
+    }
+
+    if (run_hnsw) {
+        const std::size_t hnsw_M = 32;
+        const std::size_t hnsw_ef_search = 64;
+        const std::size_t hnsw_ef_construction = 256;
+
+        ann::HNSWIndex hnsw(
+            hnsw_M,
+            hnsw_ef_search,
+            hnsw_ef_construction
+        );
+
+        double hnsw_build_ms = 0.0;
+
+        {
+            ann::Timer timer;
+            hnsw.build(data.data(), num_vectors, dim);
+            hnsw_build_ms = timer.elapsed_ms();
+            std::cout << "\nHNSW build time: " << hnsw_build_ms << " ms\n";
+        }
+
+        auto hnsw_bench = ann::benchmark_search(
+            hnsw,
+            queries.data(),
+            num_queries,
+            dim,
+            k
+        );
+
+        print_benchmark(hnsw, hnsw_bench, num_vectors, dim, num_queries, k);
+
+        double hnsw_recall = evaluate_recall(
+            brute,
+            hnsw,
+            queries.data(),
+            num_queries,
+            dim,
+            k
+        );
+
+        std::cout << "\nHNSW evaluation:\n";
+        std::cout << "M: " << hnsw_M << "\n";
+        std::cout << "efSearch: " << hnsw_ef_search << "\n";
+        std::cout << "efConstruction: " << hnsw_ef_construction << "\n";
+        std::cout << "Recall@" << k << ": " << hnsw_recall << "\n";
+
+        print_memory_stats(
+            data.size() * sizeof(float),
+            hnsw.memory_usage_bytes()
+        );
+
+        report_rows.push_back({
+            hnsw.name(),
+            0,
+            hnsw_ef_search,
+            hnsw_M,
+            hnsw_recall,
+            hnsw_bench.avg_ms,
+            hnsw_bench.p50_ms,
+            hnsw_bench.p95_ms,
+            0.0,
+            hnsw.memory_usage_bytes()
+        });
     }
 
     ann::write_benchmark_csv("benchmark_results.csv", report_rows);
