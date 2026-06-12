@@ -27,6 +27,11 @@ public:
         return "HNSW";
     }
 
+    std::size_t memory_usage_bytes() const;
+
+    void save(const std::string& path) const;
+    void load(const std::string& path);
+
 private:
     std::size_t M_;
 

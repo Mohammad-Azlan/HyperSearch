@@ -6,6 +6,7 @@
 #include <random>
 #include <stdexcept>
 #include <vector>
+#include <fstream>
 
 namespace {
 
@@ -381,6 +382,113 @@ std::size_t HNSWIndex::random_level() {
     }
 
     return level;
+}
+
+std::size_t HNSWIndex::memory_usage_bytes() const {
+    std::size_t memory = 0;
+
+    memory += data_.capacity() * sizeof(float);
+    memory += node_levels_.capacity() * sizeof(std::size_t);
+
+    memory += layers_.capacity() * sizeof(std::vector<std::vector<std::size_t>>);
+
+    for (const auto& layer : layers_) {
+        memory += layer.capacity() * sizeof(std::vector<std::size_t>);
+
+        for (const auto& neighbors : layer) {
+            memory += neighbors.capacity() * sizeof(std::size_t);
+        }
+    }
+
+    return memory;
+}
+
+void HNSWIndex::save(const std::string& path) const {
+    std::ofstream out(path, std::ios::binary);
+
+    if (!out) {
+        throw std::runtime_error("Failed to open HNSW index file for writing");
+    }
+
+    out.write(reinterpret_cast<const char*>(&M_), sizeof(M_));
+    out.write(reinterpret_cast<const char*>(&ef_search_), sizeof(ef_search_));
+    out.write(reinterpret_cast<const char*>(&ef_construction_), sizeof(ef_construction_));
+    out.write(reinterpret_cast<const char*>(&num_vectors_), sizeof(num_vectors_));
+    out.write(reinterpret_cast<const char*>(&dim_), sizeof(dim_));
+    out.write(reinterpret_cast<const char*>(&entry_point_), sizeof(entry_point_));
+    out.write(reinterpret_cast<const char*>(&max_level_), sizeof(max_level_));
+
+    std::size_t data_size = data_.size();
+    out.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
+    out.write(reinterpret_cast<const char*>(data_.data()), data_size * sizeof(float));
+
+    std::size_t levels_size = node_levels_.size();
+    out.write(reinterpret_cast<const char*>(&levels_size), sizeof(levels_size));
+    out.write(reinterpret_cast<const char*>(node_levels_.data()), levels_size * sizeof(std::size_t));
+
+    std::size_t num_layers = layers_.size();
+    out.write(reinterpret_cast<const char*>(&num_layers), sizeof(num_layers));
+
+    for (const auto& layer : layers_) {
+        std::size_t layer_size = layer.size();
+        out.write(reinterpret_cast<const char*>(&layer_size), sizeof(layer_size));
+
+        for (const auto& neighbors : layer) {
+            std::size_t neighbor_count = neighbors.size();
+            out.write(reinterpret_cast<const char*>(&neighbor_count), sizeof(neighbor_count));
+            out.write(
+                reinterpret_cast<const char*>(neighbors.data()),
+                neighbor_count * sizeof(std::size_t)
+            );
+        }
+    }
+}
+
+void HNSWIndex::load(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+
+    if (!in) {
+        throw std::runtime_error("Failed to open HNSW index file for reading");
+    }
+
+    in.read(reinterpret_cast<char*>(&M_), sizeof(M_));
+    in.read(reinterpret_cast<char*>(&ef_search_), sizeof(ef_search_));
+    in.read(reinterpret_cast<char*>(&ef_construction_), sizeof(ef_construction_));
+    in.read(reinterpret_cast<char*>(&num_vectors_), sizeof(num_vectors_));
+    in.read(reinterpret_cast<char*>(&dim_), sizeof(dim_));
+    in.read(reinterpret_cast<char*>(&entry_point_), sizeof(entry_point_));
+    in.read(reinterpret_cast<char*>(&max_level_), sizeof(max_level_));
+
+    std::size_t data_size = 0;
+    in.read(reinterpret_cast<char*>(&data_size), sizeof(data_size));
+    data_.resize(data_size);
+    in.read(reinterpret_cast<char*>(data_.data()), data_size * sizeof(float));
+
+    std::size_t levels_size = 0;
+    in.read(reinterpret_cast<char*>(&levels_size), sizeof(levels_size));
+    node_levels_.resize(levels_size);
+    in.read(reinterpret_cast<char*>(node_levels_.data()), levels_size * sizeof(std::size_t));
+
+    std::size_t num_layers = 0;
+    in.read(reinterpret_cast<char*>(&num_layers), sizeof(num_layers));
+    layers_.resize(num_layers);
+
+    for (auto& layer : layers_) {
+        std::size_t layer_size = 0;
+        in.read(reinterpret_cast<char*>(&layer_size), sizeof(layer_size));
+        layer.resize(layer_size);
+
+        for (auto& neighbors : layer) {
+            std::size_t neighbor_count = 0;
+            in.read(reinterpret_cast<char*>(&neighbor_count), sizeof(neighbor_count));
+
+            neighbors.resize(neighbor_count);
+            in.read(
+                reinterpret_cast<char*>(neighbors.data()),
+                neighbor_count * sizeof(std::size_t)
+            );
+        }
+    }
 }
 
 }

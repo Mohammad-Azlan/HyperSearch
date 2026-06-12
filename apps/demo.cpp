@@ -133,14 +133,23 @@ int main() {
                 << "\n";
     }
 
-    std::cout << "\nHNSW serialization-free search test:\n";
+    std::cout << "\nHNSW serialization test:\n";
 
-    ann::HNSWIndex hnsw(2,4, 4);
+    ann::HNSWIndex hnsw(2, 4, 4);
     hnsw.build(data.data(), num_vectors, dim);
+    hnsw.save("hnsw_demo.index");
 
-    auto hnsw_results = hnsw.search(query.data(), k);
+    ann::HNSWIndex loaded_hnsw(1, 1, 1);
+    loaded_hnsw.load("hnsw_demo.index");
 
-    std::cout << "Index: " << hnsw.name() << "\n";
+    auto hnsw_results = loaded_hnsw.search(query.data(), k);
+
+    std::cout << "Index: " << loaded_hnsw.name()
+            << " loaded from disk\n";
+
+    std::cout << "HNSW memory: "
+            << loaded_hnsw.memory_usage_bytes()
+            << " bytes\n";
 
     for (const auto& result : hnsw_results) {
         std::cout << "vector index = " << result.index
