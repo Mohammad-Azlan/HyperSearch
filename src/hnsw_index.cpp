@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <stdexcept>
 #include <queue>
-#include <unordered_set>
 #include <random>
 
 namespace ann {
@@ -187,19 +186,22 @@ namespace ann {
             std::size_t node_level = random_level();
             node_levels_[i] = node_level;
 
+            bool becomes_new_entry_point = false;
+
+            std::size_t previous_max_level = max_level_;
+
             if (node_level > max_level_) {
                 for (std::size_t level = max_level_ + 1; level <= node_level; ++level) {
                     layers_.resize(level + 1);
                     layers_[level].resize(num_vectors_);
                 }
 
-                max_level_ = node_level;
-                //entry_point_ = i;
+                becomes_new_entry_point = true;
             }
 
             const float* vector_i = data_.data() + i * dim_;
-
-            std::size_t highest_connected_level = std::min(node_level, max_level_);
+            
+            std::size_t highest_connected_level = std::min(node_level, previous_max_level);
 
             for (std::size_t level = 0; level <= highest_connected_level; ++level) {
                 auto candidates = search_layer(
@@ -225,6 +227,9 @@ namespace ann {
                 }
 
                 trim_neighbors(i, level);
+            }
+            if (becomes_new_entry_point) {
+                max_level_ = node_level;
             }
         }
     }
