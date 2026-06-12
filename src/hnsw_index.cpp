@@ -199,24 +199,33 @@ namespace ann {
 
             const float* vector_i = data_.data() + i * dim_;
 
-            auto candidates = search_layer(
-                vector_i,
-                entry_point_,
-                ef_construction_,
-                0
-            );
+            std::size_t highest_connected_level = std::min(node_level, max_level_);
 
-            std::size_t keep = std::min(M_, candidates.size());
+            for (std::size_t level = 0; level <= highest_connected_level; ++level) {
+                auto candidates = search_layer(
+                    vector_i,
+                    entry_point_,
+                    ef_construction_,
+                    level
+                );
 
-            for (std::size_t n = 0; n < keep; ++n) {
-                std::size_t neighbor = candidates[n].index;
+                std::size_t keep = std::min(M_, candidates.size());
 
-                layers_[0][i].push_back(neighbor);
-                layers_[0][neighbor].push_back(i);
-                trim_neighbors(neighbor, 0);
+                for (std::size_t n = 0; n < keep; ++n) {
+                    std::size_t neighbor = candidates[n].index;
+
+                    if (node_levels_[neighbor] < level) {
+                        continue;
+                    }
+
+                    layers_[level][i].push_back(neighbor);
+                    layers_[level][neighbor].push_back(i);
+
+                    trim_neighbors(neighbor, level);
+                }
+
+                trim_neighbors(i, level);
             }
-
-            trim_neighbors(i, 0);
         }
     }
 
