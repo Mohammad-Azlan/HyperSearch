@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <queue>
 #include <unordered_set>
+#include <random>
 
 namespace ann {
 
@@ -183,6 +184,19 @@ namespace ann {
         node_levels_.assign(num_vectors_, 0);
 
         for (std::size_t i = 1; i < num_vectors_; ++i) {
+            std::size_t node_level = random_level();
+            node_levels_[i] = node_level;
+
+            if (node_level > max_level_) {
+                for (std::size_t level = max_level_ + 1; level <= node_level; ++level) {
+                    layers_.resize(level + 1);
+                    layers_[level].resize(num_vectors_);
+                }
+
+                max_level_ = node_level;
+                //entry_point_ = i;
+            }
+
             const float* vector_i = data_.data() + i * dim_;
 
             auto candidates = search_layer(
@@ -316,6 +330,20 @@ namespace ann {
         }
 
         return output;
+    }
+
+    std::size_t HNSWIndex::random_level() {
+        static thread_local std::mt19937 rng(42);
+        static thread_local std::uniform_real_distribution<double> dist(0.0, 1.0);
+
+        std::size_t level = 0;
+        const double probability = 0.5;
+
+        while (dist(rng) < probability) {
+            ++level;
+        }
+
+        return level;
     }
 
 }
